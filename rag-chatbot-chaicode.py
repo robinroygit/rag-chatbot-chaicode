@@ -72,7 +72,7 @@ all_urls = [
 SYSTEM_PROMPT = f"""
 You are a helpful AI assistant who answers user queries based on the available context
 retrieved from website data, including page content and URLs.
-You must only use the provided context and guide the user to the correct url for more details.
+You must only use the provided context and guide the user to the correct URL for more details.
 URL:
 {all_urls}
 """
@@ -122,14 +122,17 @@ def get_vectorstore_from_url():
         namespace=namespace
     )
 
-def get_context_retriever_chain(vector_store):
+def get_context_retriever_chain(vector_store,query):
     llm = ChatOpenAI()
     retriever = vector_store.as_retriever()
+    res = vector_store.similarity_search(
+           query = query
+    )
 
     prompt = ChatPromptTemplate.from_messages([
         MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
-        ("user", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation")
+        ("user", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation and also provide relevant URL")
     ])
 
     return create_history_aware_retriever(llm, retriever, prompt)
@@ -144,13 +147,15 @@ def get_conversational_rag_chain(retriever_chain):
     return create_retrieval_chain(retriever_chain, create_stuff_documents_chain(llm, prompt))
 
 def get_response(user_input):
-    retriever_chain = get_context_retriever_chain(st.session_state.vector_store)
+    retriever_chain = get_context_retriever_chain(st.session_state.vector_store,user_input)
     rag_chain = get_conversational_rag_chain(retriever_chain)
 
     response = rag_chain.invoke({
         "chat_history": st.session_state.chat_history,
         "input": user_input
     })
+
+
 
     return response['answer']
 
